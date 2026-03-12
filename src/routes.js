@@ -6,7 +6,7 @@ const router = express.Router();
 
 router.post('/shorten', async (req, res) => {
     try {
-        const { originalUrl, customCode } = req.body;
+        const { originalUrl, customCode, expiryDays } = req.body;
         if (!originalUrl) {
             return res.status(400).json({ error: 'URL is required' });
         }
@@ -21,9 +21,15 @@ router.post('/shorten', async (req, res) => {
 
         const shortCode = customCode || shortid.generate();
 
+        let expiresAt = null;
+        if (expiryDays !== undefined && expiryDays !== null) {
+            expiresAt = new Date();
+            expiresAt.setDate(expiresAt.getDate() + parseInt(expiryDays));
+        }
         const url = new Url({
             originalUrl,
-            shortCode
+            shortCode,
+            expiresAt
         });
 
         await url.save();
@@ -31,7 +37,8 @@ router.post('/shorten', async (req, res) => {
         res.json({
             originalUrl,
             shortCode,
-            shortUrl: `http://localhost:3000/${shortCode}`
+            shortUrl: `http://localhost:3000/${shortCode}`,
+            expiresAt : expiresAt || 'never'
         });
 
     }
@@ -52,6 +59,7 @@ router.get('/analytics/:shortCode', async (req, res) => {
             originalUrl: url.originalUrl,
             shortCode: url.shortCode,
             clicks: url.clicks,
+            expiresAt: url.expiresAt || 'never',
             createdAt: url.createdAt
         });
     } catch (error) {
@@ -67,6 +75,10 @@ router.get('/:shortCode', async (req, res) => {
         const url = await Url.findOne({ shortCode });
         if (!url) {
             return res.status(404).json({ error: 'URL not found' });
+        }
+
+        if (url.expiresAt && url.expiresAt < new Date()) {
+            return res.status(410).json({ error: 'URL has expired' });
         }
 
         url.clicks += 1;
