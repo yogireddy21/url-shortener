@@ -1,6 +1,7 @@
 const express = require('express');
 const shortid = require('shortid');
 const Url = require('./model');
+const redis = require('./redis');
 
 const router = express.Router();
 
@@ -34,11 +35,20 @@ router.post('/shorten', async (req, res) => {
 
         await url.save();
 
+        if (expiresAt) {
+            const tt1 = Math.floor((expiresAt - new Date()) / 1000);
+            await redis.setex(`url:${shortCode}`, ttl, originalUrl);
+
+        }
+        else {
+            await redis.set(`url:${shortCode}`, originalUrl);
+        }
+
         res.json({
             originalUrl,
             shortCode,
             shortUrl: `http://localhost:3000/${shortCode}`,
-            expiresAt : expiresAt || 'never'
+            expiresAt: expiresAt || 'never'
         });
 
     }
@@ -72,15 +82,37 @@ router.get('/analytics/:shortCode', async (req, res) => {
 router.get('/:shortCode', async (req, res) => {
     try {
         const { shortCode } = req.params;
+
+        const cachedUrl = await redis.get(`url:${shortCode}`);
+        if (cachedUrl) {
+            console.log("Redis Hit for", shortCode);
+            await Url.findOneAndUpdate(
+                { shortCode },
+                { $inc: { clicks: 1 } }
+            );
+
+            return res.redirect(cachedUrl);
+        }
+
+        console.log('Reddis MISS for', shortCode);
+
         const url = await Url.findOne({ shortCode });
         if (!url) {
             return res.status(404).json({ error: 'URL not found' });
         }
 
         if (url.expiresAt && url.expiresAt < new Date()) {
+             await redis.del(`url:${shortCode}`);
             return res.status(410).json({ error: 'URL has expired' });
         }
 
+
+        if (url.expiresAt) {
+            const ttl = Math.floor((url.expiresAt - new Date()) / 1000);
+            await redis.setex(`url:${shortCode}`, ttl, url.originalUrl);
+        } else {
+            await redis.set(`url:${shortCode}`, url.originalUrl);
+        } 
         url.clicks += 1;
         await url.save();
         res.redirect(url.originalUrl);
