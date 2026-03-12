@@ -4,9 +4,14 @@ const connectDB = require('./db');
 const routes = require('./routes');
 const rateLimiter = require('./rateLimiter');
 const authRoutes = require('./auth');
+const cors = require('cors');
 
 dotenv.config();
 const app = express();
+app.use(cors({
+    origin: 'http://localhost:3001',
+    credentials: true
+}));
 app.use(express.json());
 app.use(rateLimiter);
 connectDB();

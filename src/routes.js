@@ -7,18 +7,17 @@ const authenticate = require('./middleware');
 
 const router = express.Router();
 
-router.post('/shorten',authenticate, async (req, res) => {
+router.post('/shorten', authenticate, async (req, res) => {
     try {
         const { originalUrl, customCode, expiryDays } = req.body;
         if (!originalUrl) {
             return res.status(400).json({ error: 'URL is required' });
         }
 
-
         if (customCode) {
-            const exsisitng = await Url.findOne({ shortCode: customCode });
-            if (exsisitng) {
-                return res.status(400).json({ error: 'Custom Code already token' });
+            const existing = await Url.findOne({ shortCode: customCode });
+            if (existing) {
+                return res.status(400).json({ error: 'Custom Code already taken' });
             }
         }
 
@@ -29,13 +28,20 @@ router.post('/shorten',authenticate, async (req, res) => {
             expiresAt = new Date();
             expiresAt.setDate(expiresAt.getDate() + parseInt(expiryDays));
         }
-        // add to queue instead of saving directly to MongoDB
+
         await urlQueue.add({
             originalUrl,
             shortCode,
             expiresAt,
-            userId : req.userId
+            userId: req.userId
         });
+
+        if (expiresAt) {
+            const ttl = Math.floor((expiresAt - new Date()) / 1000);
+            await redis.setex(`url:${shortCode}`, ttl, originalUrl);
+        } else {
+            await redis.set(`url:${shortCode}`, originalUrl);
+        }
 
         res.json({
             message: 'URL is being processed',
@@ -44,16 +50,19 @@ router.post('/shorten',authenticate, async (req, res) => {
             expiresAt: expiresAt || 'never'
         });
 
-    }
-    catch (error) {
+    } catch (error) {
+        console.log(error);
         res.status(500).json({ error: 'Server error' });
     }
 });
+
+// ← all specific routes ABOVE /:shortCode
 
 router.get('/analytics/:shortCode', async (req, res) => {
     try {
         const { shortCode } = req.params;
         const url = await Url.findOne({ shortCode });
+
         if (!url) {
             return res.status(404).json({ error: 'URL not found' });
         }
@@ -68,26 +77,57 @@ router.get('/analytics/:shortCode', async (req, res) => {
     } catch (error) {
         res.status(500).json({ error: 'Server error' });
     }
-
 });
 
+router.get('/my-urls', authenticate, async (req, res) => {
+    try {
+        const urls = await Url.find({ userId: req.userId })
+            .sort({ createdAt: -1 });
+        res.json(urls);
+    } catch (error) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
 
+router.delete('/url/:shortCode', authenticate, async (req, res) => {
+    try {
+        const { shortCode } = req.params;
+        const url = await Url.findOne({ shortCode });
+
+        if (!url) {
+            return res.status(404).json({ error: 'URL not found' });
+        }
+
+        if (url.userId.toString() !== req.userId) {
+            return res.status(403).json({ error: 'Not authorized' });
+        }
+
+        await Url.deleteOne({ shortCode });
+        await redis.del(`url:${shortCode}`);
+
+        res.json({ message: 'URL deleted successfully' });
+
+    } catch (error) {
+        res.status(500).json({ error: 'Server error' });
+    }
+});
+
+// ← /:shortCode always LAST
 router.get('/:shortCode', async (req, res) => {
     try {
         const { shortCode } = req.params;
 
         const cachedUrl = await redis.get(`url:${shortCode}`);
         if (cachedUrl) {
-            console.log("Redis Hit for", shortCode);
+            console.log('Redis HIT for', shortCode);
             await Url.findOneAndUpdate(
                 { shortCode },
                 { $inc: { clicks: 1 } }
             );
-
             return res.redirect(cachedUrl);
         }
 
-        console.log('Reddis MISS for', shortCode);
+        console.log('Redis MISS for', shortCode);
 
         const url = await Url.findOne({ shortCode });
         if (!url) {
@@ -99,18 +139,18 @@ router.get('/:shortCode', async (req, res) => {
             return res.status(410).json({ error: 'URL has expired' });
         }
 
-
         if (url.expiresAt) {
             const ttl = Math.floor((url.expiresAt - new Date()) / 1000);
             await redis.setex(`url:${shortCode}`, ttl, url.originalUrl);
         } else {
             await redis.set(`url:${shortCode}`, url.originalUrl);
         }
+
         url.clicks += 1;
         await url.save();
         res.redirect(url.originalUrl);
-    }
-    catch (error) {
+
+    } catch (error) {
         res.status(500).json({ error: 'Server error' });
     }
 });
