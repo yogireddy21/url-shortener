@@ -10,11 +10,12 @@ const urlQueue = new Bull('url-queue', {
 
 
 urlQueue.process(async (job) => {
-    const { originalUrl, shortCode, expiresAt } = job.data;
+    const { originalUrl, shortCode, expiresAt , userId} = job.data;
     const url = new Url({
         originalUrl,
         shortCode,
-        expiresAt
+        expiresAt,
+        userId
     });
     await url.save();
     console.log(`Processed job for ${shortCode}`);

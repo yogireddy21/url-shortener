@@ -3,10 +3,11 @@ const shortid = require('shortid');
 const Url = require('./model');
 const redis = require('./redis');
 const urlQueue = require('./queue');
+const authenticate = require('./middleware');
 
 const router = express.Router();
 
-router.post('/shorten', async (req, res) => {
+router.post('/shorten',authenticate, async (req, res) => {
     try {
         const { originalUrl, customCode, expiryDays } = req.body;
         if (!originalUrl) {
@@ -32,7 +33,8 @@ router.post('/shorten', async (req, res) => {
         await urlQueue.add({
             originalUrl,
             shortCode,
-            expiresAt
+            expiresAt,
+            userId : req.userId
         });
 
         res.json({
