@@ -2,6 +2,7 @@ const express = require('express');
 const shortid = require('shortid');
 const Url = require('./model');
 const redis = require('./redis');
+const urlQueue = require('./queue');
 
 const router = express.Router();
 
@@ -27,25 +28,15 @@ router.post('/shorten', async (req, res) => {
             expiresAt = new Date();
             expiresAt.setDate(expiresAt.getDate() + parseInt(expiryDays));
         }
-        const url = new Url({
+        // add to queue instead of saving directly to MongoDB
+        await urlQueue.add({
             originalUrl,
             shortCode,
             expiresAt
         });
 
-        await url.save();
-
-        if (expiresAt) {
-            const tt1 = Math.floor((expiresAt - new Date()) / 1000);
-            await redis.setex(`url:${shortCode}`, ttl, originalUrl);
-
-        }
-        else {
-            await redis.set(`url:${shortCode}`, originalUrl);
-        }
-
         res.json({
-            originalUrl,
+            message: 'URL is being processed',
             shortCode,
             shortUrl: `http://localhost:3000/${shortCode}`,
             expiresAt: expiresAt || 'never'
@@ -102,7 +93,7 @@ router.get('/:shortCode', async (req, res) => {
         }
 
         if (url.expiresAt && url.expiresAt < new Date()) {
-             await redis.del(`url:${shortCode}`);
+            await redis.del(`url:${shortCode}`);
             return res.status(410).json({ error: 'URL has expired' });
         }
 
@@ -112,7 +103,7 @@ router.get('/:shortCode', async (req, res) => {
             await redis.setex(`url:${shortCode}`, ttl, url.originalUrl);
         } else {
             await redis.set(`url:${shortCode}`, url.originalUrl);
-        } 
+        }
         url.clicks += 1;
         await url.save();
         res.redirect(url.originalUrl);
