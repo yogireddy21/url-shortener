@@ -2,17 +2,17 @@ FROM node:20-alpine
 
 WORKDIR /app
 
-# copy package files first
-COPY package.json package-lock.json* ./
+# copy dependency files
+COPY package.json package-lock.json ./
 
 # install dependencies
-RUN npm install --omit=dev
+RUN npm ci --omit=dev
 
 # copy project files
 COPY . .
 
-# expose port
+# Railway assigns port dynamically
+ENV PORT=3000
 EXPOSE 3000
 
-# start app
 CMD ["node", "src/index.js"]
