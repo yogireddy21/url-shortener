@@ -17,7 +17,7 @@ function Dashboard() {
 
     useEffect(() => {
         fetchUrls();
-    }, []);
+    }, [fetchUrls]);
 
     const fetchUrls = async () => {
         try {
