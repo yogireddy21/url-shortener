@@ -12,6 +12,7 @@ function Landing() {
     const [loading, setLoading] = useState(false);
     const navigate = useNavigate();
     const token = localStorage.getItem('token');
+    const API = "https://url-shortener-production-58b4.up.railway.app";
 
     const handleShorten = async () => {
         if (!token) {
@@ -28,7 +29,7 @@ function Landing() {
         setError('');
 
         try {
-            const res = await axios.post('http://localhost:3000/shorten', {
+            const res = await axios.post(`${API}/shorten`, {
                 originalUrl: url,
                 customCode: customCode || undefined,
                 expiryDays: expiryDays || undefined

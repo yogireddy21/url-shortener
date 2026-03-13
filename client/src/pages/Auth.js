@@ -3,6 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './Auth.css';
 
+const API = "https://url-shortener-production-58b4.up.railway.app";
+
 function Auth() {
     const [isLogin, setIsLogin] = useState(true);
     const [email, setEmail] = useState('');
@@ -22,7 +24,8 @@ function Auth() {
 
         try {
             const endpoint = isLogin ? '/auth/login' : '/auth/signup';
-            const res = await axios.post(`http://localhost:3000${endpoint}`, {
+
+            const res = await axios.post(`${API}${endpoint}`, {
                 email,
                 password
             });
@@ -48,7 +51,6 @@ function Auth() {
                     {isLogin ? 'Sign in to manage your links' : 'Start shortening URLs for free'}
                 </p>
 
-                {/* tabs */}
                 <div className="auth-tabs">
                     <button
                         className={`auth-tab ${isLogin ? 'active' : ''}`}
@@ -56,6 +58,7 @@ function Auth() {
                     >
                         Login
                     </button>
+
                     <button
                         className={`auth-tab ${!isLogin ? 'active' : ''}`}
                         onClick={() => { setIsLogin(false); setError(''); }}
@@ -64,7 +67,6 @@ function Auth() {
                     </button>
                 </div>
 
-                {/* form */}
                 <div className="auth-form">
                     <div className="form-group">
                         <label>Email</label>
@@ -76,6 +78,7 @@ function Auth() {
                             className="form-input"
                         />
                     </div>
+
                     <div className="form-group">
                         <label>Password</label>
                         <input

@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './Dashboard.css';
 
-const API = process.env.REACT_APP_API || "http://localhost:3000";
+const API = "https://url-shortener-production-58b4.up.railway.app";
 
 function Dashboard() {
     const [urls, setUrls] = useState([]);
