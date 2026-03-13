@@ -29,12 +29,23 @@ router.post('/shorten', authenticate, async (req, res) => {
             expiresAt.setDate(expiresAt.getDate() + parseInt(expiryDays));
         }
 
-        await urlQueue.add({
-            originalUrl,
-            shortCode,
-            expiresAt,
-            userId: req.userId
-        });
+        try {
+            await urlQueue.add({
+                originalUrl,
+                shortCode,
+                expiresAt,
+                userId: req.userId
+            });
+        } catch (queueError) {
+            console.log('Queue failed, saving directly:', queueError.message);
+            const url = new Url({
+                originalUrl,
+                shortCode,
+                expiresAt,
+                userId: req.userId
+            });
+            await url.save();
+        }
 
         if (expiresAt) {
             const ttl = Math.floor((expiresAt - new Date()) / 1000);
