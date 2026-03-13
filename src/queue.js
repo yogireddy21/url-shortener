@@ -4,23 +4,7 @@ const Url = require('./model');
 let urlQueue;
 
 try {
-    const redisConfig = process.env.REDIS_URL
-        ? { url: process.env.REDIS_URL }
-        : {
-            host: process.env.REDIS_HOST || 'localhost',
-            port: process.env.REDIS_PORT || 6379,
-        };
-
-    urlQueue = new Bull('url-queue', {
-        redis: redisConfig,
-        settings: {
-            maxStalledCount: 0,
-        },
-        defaultJobOptions: {
-            attempts: 1,
-            timeout: 5000,
-        }
-    });
+    urlQueue = new Bull('url-queue', process.env.REDIS_URL || 'redis://localhost:6379');
 
     urlQueue.process(async (job) => {
         const { originalUrl, shortCode, expiresAt, userId } = job.data;
