@@ -57,7 +57,7 @@ router.post('/shorten', authenticate, async (req, res) => {
         res.json({
             message: 'URL is being processed',
             shortCode,
-            shortUrl: `http://localhost:3000/${shortCode}`,
+            shortUrl: `${req.protocol}://${req.get('host')}/${shortCode}`,
             expiresAt: expiresAt || 'never'
         });
 
