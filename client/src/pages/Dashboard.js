@@ -1,7 +1,10 @@
-import { useState, useEffect } from 'react';
+
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import './Dashboard.css';
+
+const API = process.env.REACT_APP_API || "http://localhost:3000";
 
 function Dashboard() {
     const [urls, setUrls] = useState([]);
@@ -12,16 +15,13 @@ function Dashboard() {
     const [error, setError] = useState('');
     const [success, setSuccess] = useState('');
     const [creating, setCreating] = useState(false);
+
     const navigate = useNavigate();
     const token = localStorage.getItem('token');
 
-    useEffect(() => {
-        fetchUrls();
-    }, [fetchUrls]);
-
-    const fetchUrls = async () => {
+    const fetchUrls = useCallback(async () => {
         try {
-            const res = await axios.get('http://localhost:3000/my-urls', {
+            const res = await axios.get(`${API}/my-urls`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
             setUrls(res.data);
@@ -30,7 +30,11 @@ function Dashboard() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [token]);
+
+    useEffect(() => {
+        fetchUrls();
+    }, [fetchUrls]);
 
     const handleCreate = async () => {
         if (!originalUrl) {
@@ -43,7 +47,7 @@ function Dashboard() {
         setSuccess('');
 
         try {
-            await axios.post('http://localhost:3000/shorten', {
+            await axios.post(`${API}/shorten`, {
                 originalUrl,
                 customCode: customCode || undefined,
                 expiryDays: expiryDays || undefined
@@ -55,6 +59,7 @@ function Dashboard() {
             setOriginalUrl('');
             setCustomCode('');
             setExpiryDays('');
+
             setTimeout(fetchUrls, 1500);
 
         } catch (err) {
@@ -66,9 +71,10 @@ function Dashboard() {
 
     const handleDelete = async (shortCode) => {
         try {
-            await axios.delete(`http://localhost:3000/url/${shortCode}`, {
+            await axios.delete(`${API}/url/${shortCode}`, {
                 headers: { Authorization: `Bearer ${token}` }
             });
+
             setUrls(urls.filter(u => u.shortCode !== shortCode));
         } catch (err) {
             console.log(err);
@@ -86,6 +92,7 @@ function Dashboard() {
 
     return (
         <div className="dashboard">
+
             <nav className="nav">
                 <div className="nav-logo">⚡ ShortURL</div>
                 <div className="nav-links">
@@ -95,8 +102,10 @@ function Dashboard() {
             </nav>
 
             <div className="dashboard-content">
+
                 <div className="create-box">
                     <h2 className="section-title">Create Short URL</h2>
+
                     <div className="create-form">
                         <input
                             type="text"
@@ -105,7 +114,9 @@ function Dashboard() {
                             onChange={(e) => setOriginalUrl(e.target.value)}
                             className="form-input"
                         />
+
                         <div className="create-row">
+
                             <input
                                 type="text"
                                 placeholder="Custom code (optional)"
@@ -113,6 +124,7 @@ function Dashboard() {
                                 onChange={(e) => setCustomCode(e.target.value)}
                                 className="form-input"
                             />
+
                             <input
                                 type="number"
                                 placeholder="Expiry days (optional)"
@@ -120,6 +132,7 @@ function Dashboard() {
                                 onChange={(e) => setExpiryDays(e.target.value)}
                                 className="form-input"
                             />
+
                             <button
                                 onClick={handleCreate}
                                 className="btn-primary"
@@ -127,14 +140,19 @@ function Dashboard() {
                             >
                                 {creating ? 'Creating...' : 'Create ⚡'}
                             </button>
+
                         </div>
+
                         {error && <p className="error-msg">{error}</p>}
                         {success && <p className="success-msg">{success}</p>}
+
                     </div>
                 </div>
 
+
                 <div className="urls-section">
                     <h2 className="section-title">Your URLs</h2>
+
                     {loading ? (
                         <div className="loading">Loading...</div>
                     ) : urls.length === 0 ? (
@@ -144,50 +162,72 @@ function Dashboard() {
                         </div>
                     ) : (
                         <div className="urls-list">
+
                             {urls.map((url) => (
                                 <div key={url._id} className="url-card">
+
                                     <div className="url-card-left">
+
                                         <div className="url-short">
                                             <a
-                                                href={`http://localhost:3000/${url.shortCode}`}
+                                                href={`${API}/${url.shortCode}`}
                                                 target="_blank"
                                                 rel="noreferrer"
                                             >
-                                                localhost:3000/{url.shortCode}
+                                                {API}/{url.shortCode}
                                             </a>
+
                                             <button
-                                                onClick={() => copyToClipboard(`http://localhost:3000/${url.shortCode}`)}
+                                                onClick={() => copyToClipboard(`${API}/${url.shortCode}`)}
                                                 className="btn-copy"
                                             >
                                                 Copy
                                             </button>
                                         </div>
-                                        <div className="url-original">{url.originalUrl}</div>
+
+                                        <div className="url-original">
+                                            {url.originalUrl}
+                                        </div>
+
                                         <div className="url-meta">
-                                            <span>Created: {new Date(url.createdAt).toLocaleDateString()}</span>
+                                            <span>
+                                                Created: {new Date(url.createdAt).toLocaleDateString()}
+                                            </span>
+
                                             {url.expiresAt && (
-                                                <span>Expires: {new Date(url.expiresAt).toLocaleDateString()}</span>
+                                                <span>
+                                                    Expires: {new Date(url.expiresAt).toLocaleDateString()}
+                                                </span>
                                             )}
                                         </div>
+
                                     </div>
+
                                     <div className="url-card-right">
+
                                         <div className="url-clicks">
                                             <span className="clicks-number">{url.clicks}</span>
                                             <span className="clicks-label">clicks</span>
                                         </div>
+
                                         <button
                                             onClick={() => handleDelete(url.shortCode)}
                                             className="btn-delete"
                                         >
                                             Delete
                                         </button>
+
                                     </div>
+
                                 </div>
                             ))}
+
                         </div>
                     )}
                 </div>
+
             </div>
+
         </div>
     );
 }
