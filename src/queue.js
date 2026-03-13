@@ -11,7 +11,16 @@ try {
             port: process.env.REDIS_PORT || 6379,
         };
 
-    urlQueue = new Bull('url-queue', { redis: redisConfig });
+    urlQueue = new Bull('url-queue', {
+        redis: redisConfig,
+        settings: {
+            maxStalledCount: 0,
+        },
+        defaultJobOptions: {
+            attempts: 1,
+            timeout: 5000,
+        }
+    });
 
     urlQueue.process(async (job) => {
         const { originalUrl, shortCode, expiresAt, userId } = job.data;
@@ -30,7 +39,7 @@ try {
     });
 
     urlQueue.on('failed', (job, error) => {
-        console.log(`Job ${job.id} failed`, error);
+        console.log(`Job ${job.id} failed`, error.message);
     });
 
     console.log('Queue initialized');
