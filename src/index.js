@@ -22,6 +22,19 @@ app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok' });
 });
 
+app.get('/', (req, res) => {
+    res.json({
+        message: 'URL Shortener API',
+        endpoints: {
+            signup: 'POST /auth/signup',
+            login: 'POST /auth/login',
+            shorten: 'POST /shorten',
+            redirect: 'GET /:shortCode',
+            analytics: 'GET /analytics/:shortCode'
+        }
+    });
+});
+
 app.use(rateLimiter);
 app.use('/auth', authRoutes);
 app.use('/', routes);
