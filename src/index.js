@@ -1,12 +1,14 @@
 const express = require('express');
 const dotenv = require('dotenv');
+
+dotenv.config();
+
 const connectDB = require('./db');
 const routes = require('./routes');
 const rateLimiter = require('./rateLimiter');
 const authRoutes = require('./auth');
 const cors = require('cors');
 
-dotenv.config();
 const app = express();
 
 app.use(cors({
@@ -15,15 +17,15 @@ app.use(cors({
 }));
 
 app.use(express.json());
+
 app.get('/health', (req, res) => {
     res.status(200).json({ status: 'ok' });
 });
+
 app.use(rateLimiter);
-connectDB();
 app.use('/auth', authRoutes);
 app.use('/', routes);
 
-// catch all errors
 app.use((err, req, res, next) => {
     console.log('ERROR:', err.message);
     res.status(500).json({ error: err.message });
@@ -32,9 +34,14 @@ app.use((err, req, res, next) => {
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-    console.log(`Servering is running on port ${PORT}`);
+    console.log(`Server running on port ${PORT}`);
+    connectDB();
 });
 
 process.on('unhandledRejection', (error) => {
     console.log('Unhandled Rejection:', error.message);
+});
+
+process.on('uncaughtException', (error) => {
+    console.log('Uncaught Exception:', error.message);
 });
