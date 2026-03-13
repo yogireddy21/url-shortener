@@ -1,16 +1,17 @@
 const Bull = require('bull');
 const Url = require('./model');
 
-const urlQueue = new Bull('url-queue', {
-    redis: {
+const redisConfig = process.env.REDIS_URL
+    ? { url: process.env.REDIS_URL }
+    : {
         host: process.env.REDIS_HOST || 'localhost',
         port: process.env.REDIS_PORT || 6379,
-    }
-});
+    };
 
+const urlQueue = new Bull('url-queue', { redis: redisConfig });
 
 urlQueue.process(async (job) => {
-    const { originalUrl, shortCode, expiresAt , userId} = job.data;
+    const { originalUrl, shortCode, expiresAt, userId } = job.data;
     const url = new Url({
         originalUrl,
         shortCode,
@@ -19,8 +20,8 @@ urlQueue.process(async (job) => {
     });
     await url.save();
     console.log(`Processed job for ${shortCode}`);
-
 });
+
 urlQueue.on('completed', (job) => {
     console.log(`Job ${job.id} completed`);
 });
@@ -28,7 +29,5 @@ urlQueue.on('completed', (job) => {
 urlQueue.on('failed', (job, error) => {
     console.log(`Job ${job.id} failed`, error);
 });
-
-
 
 module.exports = urlQueue;
