@@ -20,8 +20,18 @@ connectDB();
 app.use('/auth', authRoutes);
 app.use('/', routes);
 
+// catch all errors
+app.use((err, req, res, next) => {
+    console.log('ERROR:', err.message);
+    res.status(500).json({ error: err.message });
+});
+
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
     console.log(`Servering is running on port ${PORT}`);
+});
+
+process.on('unhandledRejection', (error) => {
+    console.log('Unhandled Rejection:', error.message);
 });
